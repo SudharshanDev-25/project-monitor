@@ -1,0 +1,135 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import {
+  Injectable,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+
+import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
+import { Project } from './entities/project.entity';
+import { TeamsService } from 'src/teams/teams.service';
+import { CreateManagerProjectDto } from './dto/create-manager-project.dto';
+
+@Injectable()
+export class ProjectsService {
+  constructor(
+    @InjectModel(Project.name) private projectModel: Model<Project>,
+    private readonly teamService: TeamsService,
+  ) {}
+
+  // Get all projects
+  async getProjects() {
+    try {
+      return await this.projectModel.find().populate({
+        path: 'team',
+        populate: [
+          { path: 'manager', select: 'name email' },
+          { path: 'teamLead', select: 'name email' },
+          { path: 'members', select: 'name email' },
+        ],
+      });
+    } catch (error) {
+      throw new InternalServerErrorException(error);
+    }
+  }
+
+  // create new project
+  async createProject(dto: CreateProjectDto) {
+    try {
+      const project = new this.projectModel({
+        ...dto,
+        team: new Types.ObjectId(dto.team),
+      });
+
+      await project.save();
+      return project.populate('team');
+    } catch (error) {
+      throw new InternalServerErrorException(error);
+    }
+  }
+
+  // update existing project
+  async updateProject(id: string, dto: UpdateProjectDto) {
+    try {
+      const project = await this.projectModel
+        .findByIdAndUpdate(id, dto, { new: true })
+        .populate('team');
+
+      if (!project) throw new NotFoundException('Project not found');
+
+      return project;
+    } catch (error) {
+      throw new InternalServerErrorException(error);
+    }
+  }
+
+  // Delete project
+  async deleteProject(id: string) {
+    try {
+      const deleted = await this.projectModel.findByIdAndDelete(id);
+      if (!deleted) throw new NotFoundException('Project not found');
+
+      return { message: 'Project deleted' };
+    } catch (error) {
+      throw new InternalServerErrorException(error);
+    }
+  }
+
+  // Add new project by manager
+  async createProjectByManager(userId: string, dto: CreateManagerProjectDto) {
+    try {
+      const team = await this.teamService.findByManagerId(userId);
+      if (!team) throw new NotFoundException('Team not found for this manager');
+
+      const project = new this.projectModel({
+        ...dto,
+        team: team._id,
+      });
+
+      await project.save();
+      return project.populate('team');
+    } catch (error) {
+      throw new InternalServerErrorException(error);
+    }
+  }
+
+  // Get projects that are belong to manager
+  async getProjectsByManager(userId: string) {
+    try {
+      const teams = await this.teamService.findTeamsByMangerId(userId);
+      if (teams.length === 0)
+        throw new NotFoundException('No teams found for this manager');
+
+      const teamIds = teams.map((t) => t._id);
+
+      return await this.projectModel
+        .find({ team: { $in: teamIds } })
+        .populate('team');
+    } catch (error) {
+      throw new InternalServerErrorException(error);
+    }
+  }
+
+  // project existence checked
+  async isProjectExistById(id: string | undefined) {
+    try {
+      return this.projectModel.findById(id);
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  async getProjectsByIds(id: string[] | undefined[]) {
+    try {
+      return this.projectModel
+        .find({ _id: { $in: id } })
+        .populate('team', 'name members')
+        .select('title description status progress');
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+}

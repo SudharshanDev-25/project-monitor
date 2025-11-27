@@ -1,0 +1,198 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { CreateTeamDto } from './dto/create-team.dto';
+import { UpdateTeamDto } from './dto/update-team.dto';
+import { Team } from './entities/team.entity';
+import { UsersService } from 'src/users/users.service';
+
+@Injectable()
+export class TeamsService {
+  constructor(
+    @InjectModel(Team.name) private teamModel: Model<Team>,
+    private readonly userService: UsersService,
+  ) {}
+
+  // Get All Teams
+
+  async getTeams() {
+    try {
+      return await this.teamModel
+        .find()
+        .populate('manager', 'name role')
+        .populate('teamLead', 'name role')
+        .populate('members', 'name role');
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  // Create New Team
+
+  async createTeam(dto: CreateTeamDto) {
+    try {
+      const { name, manager, teamLead, members } = dto;
+
+      const managerUser = await this.userService.findById(manager);
+      if (!managerUser) throw new NotFoundException('Manager not found');
+
+      const memberUsers = await this.userService.findMembers(members);
+      if (memberUsers.length !== members?.length)
+        throw new BadRequestException('Some members not found');
+
+      const team = new this.teamModel({
+        name,
+        manager: managerUser._id,
+        teamLead: teamLead,
+        members: memberUsers.map((m) => m._id),
+      });
+
+      const saved = await team.save();
+      return saved.populate('manager teamLead members', 'name role avatar');
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  // Update Team
+
+  async updateTeam(id: string, dto: UpdateTeamDto) {
+    try {
+      const { name, manager, teamLead, members } = dto;
+
+      const managerUser = await this.userService.findById(manager);
+      if (!managerUser) throw new NotFoundException('manager not found');
+
+      const memberUsers = await this.userService.findMembers(members);
+
+      const updated = await this.teamModel
+        .findByIdAndUpdate(
+          id,
+          {
+            name,
+            manager: managerUser._id,
+            teamLead: teamLead,
+            members: memberUsers.map((m) => m._id),
+          },
+          { new: true },
+        )
+        .populate('manager', 'name role avatar')
+        .populate('teamLead', 'name role avatar')
+        .populate('members', 'name role avatar');
+
+      if (!updated) throw new NotFoundException('Team not found');
+
+      return updated;
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  // Delete Team
+
+  async deleteTeam(id: string) {
+    try {
+      const deleted = await this.teamModel.findByIdAndDelete(id);
+
+      if (!deleted) throw new NotFoundException('Team not found');
+
+      return { message: 'Team deleted successfully' };
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  // Get Team Members by Manager
+
+  async getTeamMembersByManager(managerId: string) {
+    try {
+      const teams = await this.teamModel
+        .find({ manager: new Types.ObjectId(managerId) })
+        .populate('teamLead', 'name designation status')
+        .populate('members', 'name designation status');
+
+      if (teams.length === 0) {
+        throw new NotFoundException('No teams found for this manager');
+      }
+
+      return {
+        managerId,
+        teams: teams.map((team) => ({
+          teamId: team._id,
+          teamLead: team.teamLead,
+          members: team.members,
+        })),
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  // Get Team Member Details
+
+  async getMemberDetailsById(memberId: string) {
+    try {
+      const team = await this.teamModel
+        .findOne({
+          $or: [{ members: memberId }, { teamLead: memberId }],
+        })
+        .populate('manager', 'name email')
+        .populate('teamLead', 'name email');
+
+      if (!team) throw new NotFoundException('No team found for this member');
+
+      const member = await this.userService.findById(memberId);
+      if (!member) throw new NotFoundException('Member not found');
+
+      const user = {
+        name: member.name,
+        email: member.email,
+        designation: member.designation,
+        status: member.status,
+        joined: member.joiningDate,
+      };
+
+      return {
+        teamName: team.name,
+        manger: team.manager,
+        teamLead: team.teamLead,
+        user,
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  async findByManagerId(id: string | undefined) {
+    try {
+      return this.teamModel.findOne({ manager: new Types.ObjectId(id) }).exec();
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  async findTeamsByMangerId(id: string | undefined) {
+    try {
+      return this.teamModel.find({ manager: new Types.ObjectId(id) }).exec();
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  async findTeamLeadsAndMembersByMangerTd(id: string | undefined) {
+    try {
+      return this.teamModel
+        .find({ manager: new Types.ObjectId(id) })
+        .select('members teamLead')
+        .exec();
+    } catch (error) {
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+}
