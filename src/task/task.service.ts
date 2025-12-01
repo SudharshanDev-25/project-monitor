@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/no-base-to-string */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -12,90 +17,134 @@ import { ProjectsService } from 'src/projects/projects.service';
 
 @Injectable()
 export class TaskService {
+  private readonly logger = new Logger(TaskService.name);
   constructor(
     @InjectModel(Task.name) private taskModel: Model<Task>,
     private readonly teamService: TeamsService,
     private readonly projectService: ProjectsService,
   ) {}
 
-  // Create new Task that is related to project
+  // Create Task
   async createTask(dto: CreateTaskDto) {
-    const projectExists = await this.projectService.isProjectExistById(
-      dto.project,
-    );
+    try {
+      const projectExists = await this.projectService.isProjectExistById(
+        dto.project,
+      );
 
-    if (!projectExists) {
-      throw new NotFoundException('Project not found');
+      if (!projectExists) {
+        this.logger.warn(`Project not found: ${dto.project}`);
+        throw new NotFoundException('Project not found');
+      }
+
+      const newTask = await this.taskModel.create(dto);
+      this.logger.log(`Task created: ${dto.title}`);
+
+      return newTask.populate([
+        { path: 'project' },
+        { path: 'assignedTo', select: 'name email' },
+      ]);
+    } catch (error) {
+      this.logger.error(`Failed to create task: ${error.message}`);
+      throw new InternalServerErrorException('Unable to create task');
     }
-
-    const newTask = await this.taskModel.create(dto);
-
-    return newTask.populate([
-      { path: 'project' },
-      { path: 'assignedTo', select: 'name email' },
-    ]);
   }
 
-  // get all tasks
+  // Get all tasks
   async getAllTasks() {
-    return this.taskModel
-      .find()
-      .populate('project', 'title')
-      .populate('assignedTo', 'name email');
+    try {
+      this.logger.log('Fetching all tasks');
+      return await this.taskModel
+        .find()
+        .populate('project', 'title')
+        .populate('assignedTo', 'name email');
+    } catch (error) {
+      this.logger.error(`Failed to fetch tasks: ${error.message}`);
+      throw new InternalServerErrorException('Unable to fetch tasks');
+    }
   }
 
-  // update task
+  // Update Task
   async updateTask(id: string, dto: UpdateTaskDto) {
-    const task = await this.taskModel
-      .findByIdAndUpdate(id, dto, { new: true })
-      .populate('project', 'title')
-      .populate('assignedTo', 'name email');
+    try {
+      const task = await this.taskModel
+        .findByIdAndUpdate(id, dto, { new: true })
+        .populate('project', 'title')
+        .populate('assignedTo', 'name email');
 
-    if (!task) throw new NotFoundException('Task not found');
-    return task;
+      if (!task) {
+        this.logger.warn(`Task not found: ${id}`);
+        throw new NotFoundException('Task not found');
+      }
+      this.logger.log(`Task updated: ${id}`);
+      return task;
+    } catch (error) {
+      this.logger.error(`Failed to update task: ${error.message}`);
+      throw new InternalServerErrorException('Unable to update task');
+    }
   }
 
-  // delete task
+  // Delete Task
   async deleteTask(id: string) {
-    const task = await this.taskModel.findByIdAndDelete(id);
-    if (!task) throw new NotFoundException('Task not found');
+    try {
+      const task = await this.taskModel.findByIdAndDelete(id);
 
-    return { message: 'Task deleted successfully' };
+      if (!task) {
+        this.logger.warn(`Task not found for deletion: ${id}`);
+        throw new NotFoundException('Task not found');
+      }
+      this.logger.log(`Task deleted: ${id}`);
+      return { message: 'Task deleted successfully' };
+    } catch (error) {
+      this.logger.error(`Failed to delete task: ${error.message}`);
+      throw new InternalServerErrorException('Unable to delete task');
+    }
   }
 
-  // get tasks for manager
+  // Tasks for Manager
   async getTasksForManager(managerId: string) {
-    const teams =
-      await this.teamService.findTeamLeadsAndMembersByMangerTd(managerId);
+    try {
+      const teams =
+        await this.teamService.findTeamLeadsAndMembersByMangerTd(managerId);
 
-    if (!teams.length) return [];
-    const memberIds: string[] = [];
-    teams.forEach((team) => {
-      if (team.members && team.members.length > 0) {
-        memberIds.push(...team.members.map((m) => m.toString()));
-      }
-      if (team.teamLead) {
-        memberIds.push(team.teamLead.toString());
-      }
-    });
+      if (!teams.length) return [];
 
-    return this.taskModel
-      .find({ assignedTo: { $in: memberIds } })
-      .populate('assignedTo', 'name email')
-      .populate('project', 'title');
+      const memberIds: string[] = [];
+
+      teams.forEach((team) => {
+        if (team.members?.length) {
+          memberIds.push(...team.members.map((m) => m.toString()));
+        }
+        if (team.teamLead) {
+          memberIds.push(team.teamLead.toString());
+        }
+      });
+      this.logger.log(`Tasks fetched for manager: ${managerId}`);
+      return await this.taskModel
+        .find({ assignedTo: { $in: memberIds } })
+        .populate('assignedTo', 'name email')
+        .populate('project', 'title');
+    } catch (error) {
+      this.logger.error(`Failed fetching manager tasks: ${error.message}`);
+      throw new InternalServerErrorException('Unable to fetch manager tasks');
+    }
   }
 
-  // get tasks & projects for employee
+  // Tasks by Employee
   async getTasksByEmployee(employeeId: string) {
-    const tasks = await this.taskModel
-      .find({ assignedTo: employeeId })
-      .populate('project', 'title status')
-      .populate('assignedTo', 'name email');
+    try {
+      const tasks = await this.taskModel
+        .find({ assignedTo: employeeId })
+        .populate('project', 'title status')
+        .populate('assignedTo', 'name email');
 
-    const projectIds = tasks.map((t: any) => t.project._id);
+      const projectIds = tasks.map((t: any) => t.project._id);
 
-    const projects = await this.projectService.getProjectsByIds(projectIds);
-
-    return { success: true, tasks, projects };
+      const projects = await this.projectService.getProjectsByIds(projectIds);
+      this.logger.log(`Tasks fetched for employee: ${employeeId}`);
+      return { success: true, tasks, projects };
+    } catch (error) {
+      this.logger.error(`Failed fetching employee tasks: ${error.message}`);
+      throw new InternalServerErrorException('Unable to fetch employee tasks');
+    }
   }
 }

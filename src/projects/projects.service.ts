@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -15,6 +16,7 @@ import { CreateManagerProjectDto } from './dto/create-manager-project.dto';
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
   constructor(
     @InjectModel(Project.name) private projectModel: Model<Project>,
     private readonly teamService: TeamsService,
@@ -23,6 +25,7 @@ export class ProjectsService {
   // Get all projects
   async getProjects() {
     try {
+      this.logger.log('Fetching all projects');
       return await this.projectModel.find().populate({
         path: 'team',
         populate: [
@@ -32,6 +35,7 @@ export class ProjectsService {
         ],
       });
     } catch (error) {
+      this.logger.error(`Error fetching all projects: ${error.message}`);
       throw new InternalServerErrorException(error);
     }
   }
@@ -43,10 +47,14 @@ export class ProjectsService {
         ...dto,
         team: new Types.ObjectId(dto.team),
       });
+      this.logger.log(`Creating project: ${dto.title}`);
 
       await project.save();
       return project.populate('team');
     } catch (error) {
+      this.logger.error(
+        `Error creating project ${dto.title}: ${error.message}`,
+      );
       throw new InternalServerErrorException(error);
     }
   }
@@ -58,10 +66,16 @@ export class ProjectsService {
         .findByIdAndUpdate(id, dto, { new: true })
         .populate('team');
 
-      if (!project) throw new NotFoundException('Project not found');
+      if (!project) {
+        this.logger.warn(`Project not found with ID: ${id}`);
+        throw new NotFoundException('Project not found');
+      }
+
+      this.logger.log(`Updating project: ${project.title}`);
 
       return project;
     } catch (error) {
+      this.logger.error(`Error updating project: ${error.message}`);
       throw new InternalServerErrorException(error);
     }
   }
@@ -70,10 +84,14 @@ export class ProjectsService {
   async deleteProject(id: string) {
     try {
       const deleted = await this.projectModel.findByIdAndDelete(id);
-      if (!deleted) throw new NotFoundException('Project not found');
-
+      if (!deleted) {
+        this.logger.warn(`Project not found with ID: ${id}`);
+        throw new NotFoundException('Project not found');
+      }
+      this.logger.log(`Deleting project: ${deleted.title}`);
       return { message: 'Project deleted' };
     } catch (error) {
+      this.logger.error(`Error deleting project: ${error.message}`);
       throw new InternalServerErrorException(error);
     }
   }
@@ -82,16 +100,22 @@ export class ProjectsService {
   async createProjectByManager(userId: string, dto: CreateManagerProjectDto) {
     try {
       const team = await this.teamService.findByManagerId(userId);
-      if (!team) throw new NotFoundException('Team not found for this manager');
-
+      if (!team) {
+        this.logger.warn(`Team not found for manager with ID: ${userId}`);
+        throw new NotFoundException('Team not found for this manager');
+      }
       const project = new this.projectModel({
         ...dto,
         team: team._id,
       });
 
       await project.save();
+      this.logger.log(`Creating project: ${dto.title}`);
       return project.populate('team');
     } catch (error) {
+      this.logger.error(
+        `Error creating project ${dto.title}: ${error.message}`,
+      );
       throw new InternalServerErrorException(error);
     }
   }
@@ -100,15 +124,20 @@ export class ProjectsService {
   async getProjectsByManager(userId: string) {
     try {
       const teams = await this.teamService.findTeamsByMangerId(userId);
-      if (teams.length === 0)
+      if (teams.length === 0) {
+        this.logger.warn(`No teams found for manager with ID: ${userId}`);
         throw new NotFoundException('No teams found for this manager');
+      }
 
       const teamIds = teams.map((t) => t._id);
-
+      this.logger.log(`Fetching projects for teams: ${teamIds.join(', ')}`);
       return await this.projectModel
         .find({ team: { $in: teamIds } })
         .populate('team');
     } catch (error) {
+      this.logger.error(
+        `Error fetching projects for manager: ${error.message}`,
+      );
       throw new InternalServerErrorException(error);
     }
   }
@@ -116,19 +145,27 @@ export class ProjectsService {
   // project existence checked
   async isProjectExistById(id: string | undefined) {
     try {
+      this.logger.log(`Checking existence of project with ID: ${id}`);
       return this.projectModel.findById(id);
     } catch (error) {
+      this.logger.error(
+        `Error checking project existence by ID ${id}: ${error.message}`,
+      );
       throw new InternalServerErrorException(error.message);
     }
   }
 
   async getProjectsByIds(id: string[] | undefined[]) {
     try {
+      this.logger.log(`Fetching projects with IDs: ${id?.join(', ')}`);
       return this.projectModel
         .find({ _id: { $in: id } })
         .populate('team', 'name members')
         .select('title description status progress');
     } catch (error) {
+      this.logger.error(
+        `Error fetching projects by IDs ${id?.join(', ')}: ${error.message}`,
+      );
       throw new InternalServerErrorException(error.message);
     }
   }

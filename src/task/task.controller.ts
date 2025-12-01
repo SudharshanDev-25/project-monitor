@@ -22,8 +22,16 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { roles } from 'src/users/enums/role.enums';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
-@Controller('tasks')
+@Controller('')
+@ApiTags('task')
+@ApiBearerAuth('access-token')
 export class TaskController {
   constructor(private readonly taskService: TaskService) {}
 
@@ -31,6 +39,11 @@ export class TaskController {
   @Post('save')
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Create a new task' })
+  @ApiResponse({
+    status: 200,
+    description: 'The task has been successfully created.',
+  })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   create(@Body() dto: CreateTaskDto) {
     return this.taskService.createTask(dto);
@@ -40,6 +53,11 @@ export class TaskController {
   @Get('get-all')
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get all tasks' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of all tasks.',
+  })
   findAll() {
     return this.taskService.getAllTasks();
   }
@@ -48,6 +66,11 @@ export class TaskController {
   @Put('update/:id')
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update a task' })
+  @ApiResponse({
+    status: 200,
+    description: 'The task has been successfully updated.',
+  })
   update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
     return this.taskService.updateTask(id, dto);
   }
@@ -56,6 +79,11 @@ export class TaskController {
   @Delete('delete/:id')
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a task' })
+  @ApiResponse({
+    status: 200,
+    description: 'The task has been successfully deleted.',
+  })
   delete(@Param('id') id: string) {
     return this.taskService.deleteTask(id);
   }
@@ -65,6 +93,11 @@ export class TaskController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(roles.MANAGER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get all tasks for the manager (Manager only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of all tasks for the manager.',
+  })
   getLeadTasks(@Req() req) {
     return this.taskService.getTasksForManager(req.user.userId);
   }
@@ -74,6 +107,11 @@ export class TaskController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(roles.USER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get all tasks for the employee (Employee only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of all tasks for the employee.',
+  })
   getTasksByEmployee(@Req() req) {
     return this.taskService.getTasksByEmployee(req.user.userId);
   }

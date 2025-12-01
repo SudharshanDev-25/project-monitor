@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { TeamsModule } from './teams/teams.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TaskModule } from './task/task.module';
+import { RouterModule } from '@nestjs/core';
+import { AppRoutes } from './app.routes';
 
 @Module({
   imports: [
@@ -18,6 +20,7 @@ import { TaskModule } from './task/task.module';
         uri: config.get<string>('MONGO_URI'),
       }),
     }),
+    RouterModule.register(AppRoutes),
     UsersModule,
     AuthModule,
     TeamsModule,

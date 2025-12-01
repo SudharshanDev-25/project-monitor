@@ -23,8 +23,16 @@ import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { roles } from 'src/users/enums/role.enums';
 import { CreateManagerProjectDto } from './dto/create-manager-project.dto';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
-@Controller('projects')
+@Controller('')
+@ApiTags('projects')
+@ApiBearerAuth('access-token')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
@@ -32,6 +40,8 @@ export class ProjectsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(roles.ADMIN)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get all projects (Admin only)' })
+  @ApiResponse({ status: 200, description: 'List of all projects.' })
   getAllProjects() {
     return this.projectsService.getProjects();
   }
@@ -41,6 +51,11 @@ export class ProjectsController {
   @Roles(roles.ADMIN)
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Create a new project (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'The project has been successfully created.',
+  })
   createProject(@Body() dto: CreateProjectDto) {
     return this.projectsService.createProject(dto);
   }
@@ -48,6 +63,11 @@ export class ProjectsController {
   @Patch('update/:id')
   @UseGuards(AuthGuard('jwt'))
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update a project' })
+  @ApiResponse({
+    status: 200,
+    description: 'The project has been successfully updated.',
+  })
   updateProject(@Param('id') id: string, @Body() dto: UpdateProjectDto) {
     return this.projectsService.updateProject(id, dto);
   }
@@ -57,6 +77,11 @@ export class ProjectsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(roles.ADMIN)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a project (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'The project has been successfully deleted.',
+  })
   deleteProject(@Param('id') id: string) {
     return this.projectsService.deleteProject(id);
   }
@@ -66,6 +91,11 @@ export class ProjectsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(roles.MANAGER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Create a new project (Manager only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'The project has been successfully created by the manager.',
+  })
   createByManager(@Req() req, @Body() dto: CreateManagerProjectDto) {
     return this.projectsService.createProjectByManager(req.user.userId, dto);
   }
@@ -75,6 +105,11 @@ export class ProjectsController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(roles.MANAGER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get all projects for the manager (Manager only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of all projects for the manager.',
+  })
   getByManager(@Req() req) {
     return this.projectsService.getProjectsByManager(req.user.userId);
   }

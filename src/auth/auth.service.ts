@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -8,116 +7,34 @@ import {
   Injectable,
   UnauthorizedException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
-import { roles } from 'src/users/enums/role.enums';
 
 @Injectable()
 export class AuthService {
+  private readonly logger: Logger = new Logger(AuthService.name);
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
   ) {}
 
-  //  Validate User
   async validateUser(email: string, password: string): Promise<any> {
-    try {
-      const user = await this.usersService.findByEmail(email);
-
-      if (!user) throw new UnauthorizedException('Invalid email');
-
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) throw new UnauthorizedException('Invalid password');
-
-      if (user.role !== roles.USER) {
-        throw new ForbiddenException('Access denied: Only users allowed');
-      }
-
-      const { password: _p, ...result } = user.toObject
-        ? user.toObject()
-        : user;
-
-      return result;
-    } catch (error) {
-      if (
-        error instanceof UnauthorizedException ||
-        error instanceof ForbiddenException
-      ) {
-        throw error;
-      }
-      console.error('Error in validateUser:', error);
-      throw new InternalServerErrorException(
-        'Something went wrong while validating user',
-      );
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      this.logger.warn(`Invalid email attempt: ${email}`);
+      throw new UnauthorizedException('Invalid email');
     }
-  }
-
-  //  Validate Admin
-  async validateAdmin(email: string, password: string): Promise<any> {
-    try {
-      const user = await this.usersService.findByEmail(email);
-
-      if (!user) throw new UnauthorizedException('Invalid email');
-
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) throw new UnauthorizedException('Invalid password');
-
-      if (user.role !== roles.ADMIN) {
-        throw new ForbiddenException('Access denied: Only admins allowed');
-      }
-
-      const { password: _p, ...result } = user.toObject
-        ? user.toObject()
-        : user;
-
-      return result;
-    } catch (error) {
-      if (
-        error instanceof UnauthorizedException ||
-        error instanceof ForbiddenException
-      ) {
-        throw error;
-      }
-      console.error('Error in validateAdmin:', error);
-      throw new InternalServerErrorException(
-        'Something went wrong while validating admin',
-      );
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      this.logger.warn(`Invalid password attempt for email: ${email}`);
+      throw new UnauthorizedException('Invalid password');
     }
-  }
-
-  //  Validate Manager
-  async validateManager(email: string, password: string): Promise<any> {
-    try {
-      const user = await this.usersService.findByEmail(email);
-
-      if (!user) throw new UnauthorizedException('Invalid email');
-
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) throw new UnauthorizedException('Invalid password');
-
-      if (user.role !== roles.MANAGER) {
-        throw new ForbiddenException('Access denied: Only managers allowed');
-      }
-
-      const { password: _p, ...result } = user.toObject
-        ? user.toObject()
-        : user;
-
-      return result;
-    } catch (error) {
-      if (
-        error instanceof UnauthorizedException ||
-        error instanceof ForbiddenException
-      ) {
-        throw error;
-      }
-      console.error('Error in validateManager:', error);
-      throw new InternalServerErrorException(
-        'Something went wrong while validating manager',
-      );
-    }
+    const { password: _p, ...result } = user.toObject ? user.toObject() : user;
+    this.logger.log(`User validated: ${email}`);
+    return result;
   }
 
   //  Login and loading data into payload
@@ -131,12 +48,12 @@ export class AuthService {
         role: user.role,
         name: user.name,
       };
-
+      this.logger.log(`User logged in: ${user.email}`);
       return {
         access_token: this.jwtService.sign(payload),
       };
     } catch (error) {
-      console.error('Error in login:', error);
+      this.logger.error(`Error in login: ${error.message}`);
       throw new InternalServerErrorException('Login failed, please try again');
     }
   }
