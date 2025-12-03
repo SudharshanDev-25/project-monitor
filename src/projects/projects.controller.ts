@@ -29,6 +29,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { SanitizeHtmlPipe } from 'src/pipes/sanitize-html.pipe';
 
 @Controller('')
 @ApiTags('projects')
@@ -56,7 +57,7 @@ export class ProjectsController {
     status: 200,
     description: 'The project has been successfully created.',
   })
-  createProject(@Body() dto: CreateProjectDto) {
+  createProject(@Body(new SanitizeHtmlPipe()) dto: CreateProjectDto) {
     return this.projectsService.createProject(dto);
   }
 
@@ -68,7 +69,10 @@ export class ProjectsController {
     status: 200,
     description: 'The project has been successfully updated.',
   })
-  updateProject(@Param('id') id: string, @Body() dto: UpdateProjectDto) {
+  updateProject(
+    @Param('id') id: string,
+    @Body(new SanitizeHtmlPipe()) dto: UpdateProjectDto,
+  ) {
     return this.projectsService.updateProject(id, dto);
   }
 
@@ -96,7 +100,10 @@ export class ProjectsController {
     status: 200,
     description: 'The project has been successfully created by the manager.',
   })
-  createByManager(@Req() req, @Body() dto: CreateManagerProjectDto) {
+  createByManager(
+    @Req() req,
+    @Body(new SanitizeHtmlPipe()) dto: CreateManagerProjectDto,
+  ) {
     return this.projectsService.createProjectByManager(req.user.userId, dto);
   }
 

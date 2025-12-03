@@ -28,6 +28,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { SanitizeHtmlPipe } from 'src/pipes/sanitize-html.pipe';
 
 @Controller('')
 @ApiTags('task')
@@ -45,7 +46,7 @@ export class TaskController {
     description: 'The task has been successfully created.',
   })
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  create(@Body() dto: CreateTaskDto) {
+  create(@Body(new SanitizeHtmlPipe()) dto: CreateTaskDto) {
     return this.taskService.createTask(dto);
   }
 
@@ -71,7 +72,10 @@ export class TaskController {
     status: 200,
     description: 'The task has been successfully updated.',
   })
-  update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
+  update(
+    @Param('id') id: string,
+    @Body(new SanitizeHtmlPipe()) dto: UpdateTaskDto,
+  ) {
     return this.taskService.updateTask(id, dto);
   }
 

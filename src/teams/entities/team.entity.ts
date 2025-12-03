@@ -7,7 +7,7 @@ export type TeamDocument = Team & Document;
 @Schema({ timestamps: true })
 export class Team {
   @Prop({ required: true })
-  name: string;
+  teamName: string;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   manager: User | Types.ObjectId;

@@ -166,8 +166,8 @@ export class TeamsService {
         .findOne({
           $or: [{ members: memberId }, { teamLead: memberId }],
         })
-        .populate('manager', 'name email')
-        .populate('teamLead', 'name email');
+        .populate('manager', 'fullName email')
+        .populate('teamLead', 'fullName email');
 
       if (!team) {
         this.logger.warn(`No team found for member: ${memberId}`);
@@ -178,15 +178,15 @@ export class TeamsService {
       if (!member) throw new NotFoundException('Member not found');
 
       const user = {
-        name: member.name,
+        fullName: member.fullName,
         email: member.email,
-        designation: member.designation,
-        status: member.status,
-        joined: member.joiningDate,
+        jobTitle: member.jobTitle,
+        accountStatus: member.accountStatus,
+        joinedAt: member.joinedAt,
       };
       this.logger.log(`Member details found for member: ${memberId}`);
       return {
-        teamName: team.name,
+        teamName: team.teamName,
         manger: team.manager,
         teamLead: team.teamLead,
         user,

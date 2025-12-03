@@ -29,9 +29,9 @@ export class ProjectsService {
       return await this.projectModel.find().populate({
         path: 'team',
         populate: [
-          { path: 'manager', select: 'name email' },
-          { path: 'teamLead', select: 'name email' },
-          { path: 'members', select: 'name email' },
+          { path: 'manager', select: 'fullName email' },
+          { path: 'teamLead', select: 'fullName email' },
+          { path: 'members', select: 'fullName email' },
         ],
       });
     } catch (error) {
@@ -160,7 +160,7 @@ export class ProjectsService {
       this.logger.log(`Fetching projects with IDs: ${id?.join(', ')}`);
       return this.projectModel
         .find({ _id: { $in: id } })
-        .populate('team', 'name members')
+        .populate('team', 'teamName members')
         .select('title description status progress');
     } catch (error) {
       this.logger.error(

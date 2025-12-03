@@ -16,7 +16,7 @@ export class CreateUserDto {
   })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  fullName: string;
 
   @ApiProperty({
     description: 'Email address of the user',
@@ -43,7 +43,7 @@ export class CreateUserDto {
   })
   @IsString()
   @IsNotEmpty()
-  designation: string;
+  jobTitle: string;
 
   @ApiProperty({
     description: 'Role assigned to the user',

@@ -46,7 +46,7 @@ export class AuthService {
         sub: String(user._id),
         email: user.email,
         role: user.role,
-        name: user.name,
+        fullName: user.fullName,
       };
       this.logger.log(`User logged in: ${user.email}`);
       return {

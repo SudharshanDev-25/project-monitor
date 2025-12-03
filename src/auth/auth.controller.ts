@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Controller,
@@ -19,6 +20,7 @@ import { RolesGuard } from './guards/roles.guard';
 import { AuthGuard } from '@nestjs/passport';
 import { LoginDto } from './dto/login.dto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { SanitizeHtmlPipe } from 'src/pipes/sanitize-html.pipe';
 
 @ApiTags('auth')
 @Controller('')
@@ -37,18 +39,19 @@ export class AuthController {
     description: 'The user has been successfully registered.',
   })
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  async register(@Body() dto: CreateUserDto) {
+  async register(@Body(new SanitizeHtmlPipe()) dto: CreateUserDto) {
     const user = await this.usersService.create(dto);
 
     return {
       message: 'registered',
       user: {
         _id: user._id,
-        name: user.name,
+        name: user.fullName,
         email: user.email,
-        designation: user.designation,
+        jobTitle: user.jobTitle,
         role: user.role,
-        status: user.status,
+        accountStatus: user.accountStatus,
+        joinedAt: user.joinedAt,
       },
     };
   }
@@ -64,7 +67,7 @@ export class AuthController {
   @UseGuards(AuthGuard('local'), RolesGuard)
   @Roles(roles.USER)
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  async loginUser(@Body() dto: LoginDto, @Req() req) {
+  async loginUser(@Body(new SanitizeHtmlPipe()) dto: LoginDto, @Req() req) {
     return this.authService.login(req.user);
   }
 
@@ -79,7 +82,7 @@ export class AuthController {
   @UseGuards(AuthGuard('local'), RolesGuard)
   @Roles(roles.ADMIN)
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  async loginAdmin(@Body() dto: LoginDto, @Req() req) {
+  async loginAdmin(@Body(new SanitizeHtmlPipe()) dto: LoginDto, @Req() req) {
     return this.authService.login(req.user);
   }
 
@@ -94,7 +97,7 @@ export class AuthController {
   @UseGuards(AuthGuard('local'), RolesGuard)
   @Roles(roles.MANAGER)
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  async login(@Body() dto: LoginDto, @Req() req) {
+  async login(@Body(new SanitizeHtmlPipe()) dto: LoginDto, @Req() req) {
     return this.authService.login(req.user);
   }
 }

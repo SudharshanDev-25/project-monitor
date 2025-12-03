@@ -30,13 +30,13 @@ export class UsersService {
 
       const hashed = await bcrypt.hash(userDto.password, saltRounds);
 
-      const now = new Date().toLocaleString();
+      const now = new Date();
 
       const created = new this.userModel({
         ...userDto,
         password: hashed,
-        lastLogin: now,
-        joiningDate: now,
+        lastLoginAt: now,
+        joinedAt: now,
       });
       this.logger.log(`Creating user: ${userDto.email}`);
       return (await created.save()).toObject();
@@ -56,14 +56,14 @@ export class UsersService {
       this.logger.log('Fetching active users');
       return this.userModel.find(
         {
-          isWorking: 'active',
+          workStatus: 'active',
           role: { $ne: 'admin' },
         },
         {
           password: 0,
           createdAt: 0,
           updatedAt: 0,
-          relivingDate: 0,
+          resignedAt: 0,
           __v: 0,
         },
       );
@@ -111,9 +111,12 @@ export class UsersService {
   // Login Date Update
   async updateLoginDate(email: string) {
     try {
-      const last = new Date().toLocaleString();
+      const last = new Date();
       this.logger.log(`Updating login date for user: ${email}`);
-      await this.userModel.updateOne({ email }, { $set: { lastLogin: last } });
+      await this.userModel.updateOne(
+        { email },
+        { $set: { lastLoginAt: last } },
+      );
     } catch (error) {
       this.logger.error(
         `Error updating login date for user ${email}: ${error.message}`,
@@ -128,8 +131,8 @@ export class UsersService {
       const user = await this.userModel.findById(id);
       if (!user) throw new NotFoundException('User Not Found');
 
-      user.isWorking = workingStatus.INACTIVE;
-      user.relivingDate = new Date().toLocaleString();
+      user.workStatus = workingStatus.INACTIVE;
+      user.resignedAt = new Date();
       this.logger.log(`Deactivating user: ${user.email}`);
       await user.save();
       return 'User Deactivated Successfully';

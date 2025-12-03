@@ -41,7 +41,7 @@ export class TaskService {
 
       return newTask.populate([
         { path: 'project' },
-        { path: 'assignedTo', select: 'name email' },
+        { path: 'assignedTo', select: 'fullName email' },
       ]);
     } catch (error) {
       this.logger.error(`Failed to create task: ${error.message}`);
@@ -56,7 +56,7 @@ export class TaskService {
       return await this.taskModel
         .find()
         .populate('project', 'title')
-        .populate('assignedTo', 'name email');
+        .populate('assignedTo', 'fullName email');
     } catch (error) {
       this.logger.error(`Failed to fetch tasks: ${error.message}`);
       throw new InternalServerErrorException('Unable to fetch tasks');
@@ -69,7 +69,7 @@ export class TaskService {
       const task = await this.taskModel
         .findByIdAndUpdate(id, dto, { new: true })
         .populate('project', 'title')
-        .populate('assignedTo', 'name email');
+        .populate('assignedTo', 'fullName email');
 
       if (!task) {
         this.logger.warn(`Task not found: ${id}`);
@@ -121,7 +121,7 @@ export class TaskService {
       this.logger.log(`Tasks fetched for manager: ${managerId}`);
       return await this.taskModel
         .find({ assignedTo: { $in: memberIds } })
-        .populate('assignedTo', 'name email')
+        .populate('assignedTo', 'fullName email')
         .populate('project', 'title');
     } catch (error) {
       this.logger.error(`Failed fetching manager tasks: ${error.message}`);
@@ -135,7 +135,7 @@ export class TaskService {
       const tasks = await this.taskModel
         .find({ assignedTo: employeeId })
         .populate('project', 'title status')
-        .populate('assignedTo', 'name email');
+        .populate('assignedTo', 'fullName email');
 
       const projectIds = tasks.map((t: any) => t.project._id);
 

@@ -29,9 +29,10 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { SanitizeHtmlPipe } from 'src/pipes/sanitize-html.pipe';
 
 @Controller('teams')
-@ApiTags('Teams')
+@ApiTags('teams')
 @ApiBearerAuth('access-token')
 export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
@@ -59,7 +60,7 @@ export class TeamsController {
     description: 'The team has been successfully created.',
   })
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  createNewTeam(@Body() dto: CreateTeamDto) {
+  createNewTeam(@Body(new SanitizeHtmlPipe()) dto: CreateTeamDto) {
     return this.teamsService.createTeam(dto);
   }
 
@@ -72,7 +73,10 @@ export class TeamsController {
     status: 200,
     description: 'The team has been successfully updated.',
   })
-  updateTeam(@Param('id') id: string, @Body() dto: UpdateTeamDto) {
+  updateTeam(
+    @Param('id') id: string,
+    @Body(new SanitizeHtmlPipe()) dto: UpdateTeamDto,
+  ) {
     return this.teamsService.updateTeam(id, dto);
   }
 

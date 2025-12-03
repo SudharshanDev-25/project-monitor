@@ -8,35 +8,50 @@ export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
-  @Prop({ required: true })
-  name: string;
+  @Prop({ required: true, trim: true })
+  fullName: string;
 
-  @Prop({ required: true, unique: true, lowercase: true })
+  @Prop({
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+  })
   email: string;
 
   @Prop({ required: true })
   password: string;
 
-  @Prop({ required: true })
-  designation: string;
+  @Prop({ required: true, trim: true })
+  jobTitle: string;
 
-  @Prop({ required: true, default: 'user', enum: roles })
-  role: string;
+  @Prop({
+    required: true,
+    enum: roles,
+    default: roles.USER,
+  })
+  role: roles;
 
-  @Prop({ default: 'active', enum: status })
-  status: string;
+  @Prop({
+    enum: status,
+    default: status.ACTIVE,
+  })
+  accountStatus: status;
 
-  @Prop({ default: null })
-  lastLogin: string;
+  @Prop({ type: Date, default: null })
+  lastLoginAt: Date;
 
-  @Prop({ default: 'active', enum: workingStatus })
-  isWorking: string;
+  @Prop({
+    enum: workingStatus,
+    default: workingStatus.ACTIVE,
+  })
+  workStatus: workingStatus;
 
-  @Prop()
-  joiningDate: string;
+  @Prop({ type: Date })
+  joinedAt: Date;
 
-  @Prop({ default: null })
-  relivingDate: string;
+  @Prop({ type: Date, default: null })
+  resignedAt: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
